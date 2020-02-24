@@ -1,0 +1,179 @@
+html,
+body {
+    padding: 0;
+    overflow: hidden;
+    font-family: Monospace;
+    background-color: #111111;
+    color: #fff;
+    margin: 0;
+    overflow: hidden;
+
+}
+
+#wrapper {}
+
+#container {
+    position: absolute;
+    /*border: 1px solid #009900;*/
+}
+
+.navbar {
+    width: 100%;
+    background-color: #555;
+    z-index: 100;
+
+    margin: 0px;
+    position: absolute;
+}
+
+.navbar ul {
+    list-style: none;
+    margin: 0;
+    padding-left: 12px;
+
+}
+
+.navbar li {
+    float: left;
+    color: white;
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+
+    text-decoration: none;
+    font-size: 30px;
+}
+
+
+.navbar li:hover {
+    background-color: #444;
+}
+
+.navbar li:active {
+    background-color: #000000;
+}
+
+.navbar .disabled {
+    color: #333;
+}
+
+.hide {
+    display: none;
+}
+
+#layers {
+    visibility: visible;
+    width: 460px;
+    margin: 0px;
+    border: 1px solid #00ff00;
+    padding: 10px;
+    position: absolute;
+    color: greenyellow;
+    top: 60px;
+    right: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+ 
+ 
+    
+}
+#layers .proj{
+    width: 200px;
+}
+
+
+#loader {
+    z-index: 200;
+    position: absolute;
+    display: none;
+    left: 50%;
+    margin-left: -56px;
+    top: 50%;
+    margin-top: -56px;
+    text-align: center;
+}
+
+#loader p {
+    font-size: 1.2rem;
+    color: #ffffff;
+}
+
+#spinner {
+    border: 16px solid #666666;
+    border-radius: 50%;
+    border-top: 16px solid #009900;
+    width: 80px;
+    height: 80px;
+    -webkit-animation: spin 2s linear infinite;
+    /* Safari */
+    animation: spin 1s linear infinite;
+
+}
+
+
+
+
+/* Safari */
+@-webkit-keyframes spin {
+    0% {
+        -webkit-transform: rotate(0deg);
+    }
+
+    100% {
+        -webkit-transform: rotate(360deg);
+    }
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+
+
+#info {
+
+    margin: 10px;
+    width: 190px;
+    border: 1px solid #00ff00;
+    padding: 10px;
+    position: absolute;
+    color: greenyellow;
+    top: 60px;
+    z-index: 100;
+}
+
+#info ul {
+    margin: 0;
+    /* To remove default bottom margin */
+    padding: 0;
+    /* To remove defaul*/
+    list-style: none
+}
+
+#upload {
+    position: absolute;
+    margin: 10px;
+    color: greenyellow;
+    right: 10px;
+    top: 10px;
+    z-index: 100;
+}
+
+#console {
+    color: greenyellow;
+    position: absolute;
+    bottom: 0;
+    padding: 10px;
+    width: 100%;
+    text-align: left;
+    z-index: 100;
+    display: block;
+}
