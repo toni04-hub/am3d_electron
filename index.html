@@ -102,8 +102,6 @@
     var currentFile = 0;
 
     var btNextFile = document.getElementById("nextFile");
-
-
     btNextFile.addEventListener('click', setModel);
 
     var btInput = document.getElementById('pickFile');
@@ -140,6 +138,7 @@
         initControls();
         initGrid();
         initModel();
+        let layers = document.getElementById("layers").style.display = "none";
     }
 
     var fs = require('fs');
@@ -212,8 +211,6 @@
         bottomCamera.up.set(0, 0, -1);
         bottomCamera.lookAt(new THREE.Vector3(0, 0, 0));
         bottomCamera.layers.set(2);
-
-        
 
         frontCamera = new THREE.OrthographicCamera(-ortoCamSize, ortoCamSize, ortoCamSize, -ortoCamSize, 10, 2000);
         frontCamera.position.set(0, 0, 80);
@@ -349,8 +346,7 @@
             model.bufferGeometry = loader.parse(this.result);
             //Center the geometry based on the bounding box.
             model.bufferGeometry.center();
-
-
+            
             model.mesh.geometry = model.bufferGeometry;
 
 
