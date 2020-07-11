@@ -14,7 +14,7 @@
     <script src="js/loaders/STLLoader.js"></script>
     <script src="js/exporters/STLExporter.js"></script>
     <script src="js/calculate.js"></script>
-    <script async src="js/opencv.js" onload="onOpenCvReady();" type="text/javascript"></script>
+    <!--<script defer src="js/opencv.js" onload="onOpenCvReady();" type="text/javascript"></script>-->
     <link rel="stylesheet" type="text/css" href="css/style.css">
     <link rel="stylesheet" type="text/css" href="css/fontawesome/css/all.min.css">
 </head>
@@ -27,8 +27,6 @@
         <p>Carregant...</p>
     </div>
     <div id="menuBar" class="navbar">
-
-
         <ul>
             <li>
                 <label for="pickFile" title="Selecciona un model">
@@ -58,805 +56,817 @@
     <div id="wrapper">
         <div id="container">
         </div>
-        <div id="layers">
-            <fieldset class="proj">
-                <legend>Top</legend>
-                <canvas id="projTop" width="200" height="200"></canvas>
-            </fieldset>
-            <fieldset class="proj">
-                <legend>Bottom</legend>
-                <canvas id="projBottom" width="200" height="200"></canvas>
-            </fieldset>
-            <fieldset class="proj">
-                <legend>Front</legend>
-                <canvas id="projFront" width="200" height="200"></canvas>
-            </fieldset>
-            <fieldset class="proj">
-                <legend>Back</legend>
-                <canvas id="projBack" width="200" height="200"></canvas>
-            </fieldset>
-            <fieldset class="proj">
-                <legend>Left</legend>
-                <canvas id="projLeft" width="200" height="200"></canvas>
-            </fieldset>
-            <fieldset class="proj">
-                <legend>Right</legend>
-                <canvas id="projRight" width="200" height="200"></canvas>
-            </fieldset>
-        </div>
         
+        <div id="layers">
+            <div id="ortoViews">
+
+                <fieldset>
+                    <legend>Alçada</legend>
+                    <canvas id="front" width="200" height="200"></canvas>
+                </fieldset>
+                <fieldset>
+                    <legend>Planta</legend>
+                    <canvas id="top" width="200" height="200"></canvas>
+                </fieldset>
+                <fieldset>
+                    <legend>Perfil</legend>
+                    <canvas id="lat" width="200" height="200"></canvas>
+                </fieldset>
+            </div>
+            <div id="contoursViews">
+                <fieldset>
+                    <legend>Proj. fontal</legend>
+                    <canvas id="projFrontal" width="200" height="200"></canvas>
+                </fieldset>
+                <fieldset>
+                    <legend>Proj. superior</legend>
+                    <canvas id="projSuperior" width="200" height="200"></canvas>
+                </fieldset>
+                <fieldset>
+                    <legend>Proj. lateral</legend>
+                    <canvas id="projLateral" width="200" height="200"></canvas>
+                </fieldset>
+            </div>
+
+        </div>
     </div>
     <div id="console"></div>
     <script>
-        function onOpenCvReady() {
-			console.log("opencv ready!!!")
-		}
-    var scene, camera, renderer, controls;
-    var w = window.innerWidth;
-    var h = window.innerHeight;
+        const cv = require("./js/opencv.js");
 
-    var topCamera, bottomCamera, frontCamera, backCamera, rightCamera, leftCamera;
-    var ortoCamSize = 25;
+        let scene, camera, renderer, controls;
+        let w = window.innerWidth;
+        let h = window.innerHeight;
 
-    var files;
-    var currentFile = 0;
+        let topCamera, bottomCamera, frontCamera, backCamera, rightCamera, leftCamera;
+        const ortoCamSize = 25;
 
-    var btNextFile = document.getElementById("nextFile");
-    btNextFile.addEventListener('click', setModel);
+        let files;
+        let currentFile = 0;
 
-    var btInput = document.getElementById('pickFile');
-    btInput.addEventListener('change', openFile, false);
+        const btNextFile = document.getElementById("nextFile");
+        btNextFile.addEventListener('click', setModel);
 
-    var btResetMarkers = document.getElementById("resetMarkers");
-    btResetMarkers.addEventListener("click", resetMarkers);
+        const btInput = document.getElementById('pickFile');
+        btInput.addEventListener('change', openFile, false);
 
-    var btGuardar = document.getElementById("guardar");
-    btGuardar.addEventListener("click", guardar);
+        const btResetMarkers = document.getElementById("resetMarkers");
+        btResetMarkers.addEventListener("click", resetMarkers);
 
-    var model = {
-        mesh: null,
-        markers: [],
-        boxHelper: null,
-        bufferGeometry: null,
-        bBox: null,
-        projections:{
-            top:null,
-            bottom:null,
-            front:null,
-            back:null,
-            left:null,
-            right:null
+        const btGuardar = document.getElementById("guardar");
+        btGuardar.addEventListener("click", guardar);
+
+        const layers = document.getElementById("layers");
+
+        var model = {
+            mesh: null,
+            markers: [],
+            boxHelper: null,
+            bufferGeometry: null,
+            bBox: null,
+            projections: {
+                top: null,
+                bottom: null,
+                front: null,
+                back: null,
+                left: null,
+                right: null
+            }
         }
-    }
-
-    
-
-    function init() {
-        initScene();
-        initCameras();
-        initLigths();
-        initControls();
-        initGrid();
-        initModel();
-        let layers = document.getElementById("layers").style.display = "none";
-    }
-
-    var fs = require('fs');
-    var remote = require('electron').remote;
-
-    var dialog = require('electron').remote.dialog;
-
-    var app = require('electron').remote.app;
-    
-    var docsDir= app.getPath('documents')+'/Am3D/models/';
-
-    init();
-
-    function initScene() {
-
-        scene = new THREE.Scene();
-        scene.background = new THREE.Color("#000000");
-
-        //initialice renderer................................................
-        renderer = new THREE.WebGLRenderer({
-            antialias: true
-        });
-
-        renderer.setSize(w, h);
-        container.appendChild(renderer.domElement);
-
-        renderer.domElement.addEventListener("dblclick", setOrientation);
 
 
 
-        if (!fs.existsSync(docsDir)) {
-            fs.mkdir(docsDir, { recursive: true }, function(err) {
-                if (err) {
-                    console.log(err);
-                }else{
-                    console.log("Folder "+docsDir+" created!");
-                }
-            });
+        function init() {
+            initScene();
+            initCameras();
+            initLigths();
+            initControls();
+            initGrid();
+            initModel();
             
-        }else{
-            console.log("Folder "+docsDir+" exists");
+            layers.style.display = "none";
         }
 
-    }
+        var fs = require('fs');
+        var remote = require('electron').remote;
+        var dialog = require('electron').remote.dialog;
+        var app = require('electron').remote.app;
+        var docsDir = app.getPath('documents') + '/Am3D/models/';
 
-    function initModel() {
-        if (!model.mesh) {
-            model.mesh = new THREE.Mesh();
-            model.mesh.material = new THREE.MeshLambertMaterial({
-                color: 0xffffff
+        init();
+
+        function initScene() {
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color("#000000");
+
+            //initialice renderer................................................
+            renderer = new THREE.WebGLRenderer({
+                antialias: true
             });
-        }
-    }
 
+            renderer.setSize(w, h);
+            container.appendChild(renderer.domElement);
 
+            renderer.domElement.addEventListener("dblclick", setOrientation);
 
-    function initCameras() {
-        //initialize cameras................................................
-        camera = new THREE.PerspectiveCamera(30, w / h, 1, 1000);
-        camera.position.set(0, 60, 120);
 
-        topCamera = new THREE.OrthographicCamera(-ortoCamSize, ortoCamSize, ortoCamSize, -ortoCamSize, 10, 2000);
-        topCamera.position.set(0, 80, 0);
-        topCamera.up.set(0, 0, -1);
-        topCamera.lookAt(new THREE.Vector3(0, 0, 0));
-        topCamera.layers.set(1);
 
-        bottomCamera = new THREE.OrthographicCamera(-ortoCamSize, ortoCamSize, ortoCamSize, -ortoCamSize, 10, 2000);
-        bottomCamera.position.set(0, 80, 0);
-        bottomCamera.up.set(0, 0, -1);
-        bottomCamera.lookAt(new THREE.Vector3(0, 0, 0));
-        bottomCamera.layers.set(2);
-
-        frontCamera = new THREE.OrthographicCamera(-ortoCamSize, ortoCamSize, ortoCamSize, -ortoCamSize, 10, 2000);
-        frontCamera.position.set(0, 0, 80);
-        frontCamera.up.set(0, 1, 0);
-        frontCamera.lookAt(new THREE.Vector3(0, 0, 0));
-        frontCamera.layers.set(3);
-
-        backCamera = new THREE.OrthographicCamera(-ortoCamSize, ortoCamSize, ortoCamSize, -ortoCamSize, 10, 2000);
-        backCamera.position.set(0, 0, 80);
-        backCamera.up.set(0, 1, 0);
-        backCamera.lookAt(new THREE.Vector3(0, 0, 0));
-        backCamera.layers.set(4);
-
-        leftCamera = new THREE.OrthographicCamera(-ortoCamSize, ortoCamSize, ortoCamSize, -ortoCamSize, 10, 2000);
-        leftCamera.position.set(-80, 0, 0);
-        leftCamera.up.set(0, 1, 0);
-        leftCamera.lookAt(new THREE.Vector3(0, 0, 0));
-        leftCamera.layers.set(5);
-
-        rightCamera = new THREE.OrthographicCamera(-ortoCamSize, ortoCamSize, ortoCamSize, -ortoCamSize, 10, 2000);
-        rightCamera.position.set(80, 0, 0);
-        rightCamera.up.set(0, 1, 0);
-        rightCamera.lookAt(new THREE.Vector3(0, 0, 0));
-        rightCamera.layers.set(6);
-
-    }
-
-    function initLigths() {
-        //initialize cameras................................................
-        var light = new THREE.HemisphereLight(0xAAAAAA, 0x000000, 1);
-        light.position.set(0, 0, 1).normalize();
-        light.name = "global ligth";
-        camera.add(light);
-        camera.name = "perspective cam";
-        scene.add(camera);
-
-
-        var topLight = new THREE.HemisphereLight(0xff0000, 0x000000, 1);
-        topLight.position.set(0, 1, 0).normalize();
-        topLight.layers.set(1);
-        topCamera.add(topLight);
-        scene.add(topCamera);
-
-        var bottomLight = new THREE.HemisphereLight(0x00ff00, 0x000000, 1);
-        bottomLight.position.set(0, 1, 0).normalize();
-        bottomLight.layers.set(2);
-        bottomCamera.add(bottomLight);
-        scene.add(bottomCamera);
-
-        var frontLight = new THREE.HemisphereLight(0x0000ff, 0x000000, 1);
-        frontLight.position.set(0, 0, 1).normalize();
-        frontLight.layers.set(3);
-        frontCamera.add(frontLight);
-        scene.add(frontCamera);
-
-        var backLight = new THREE.HemisphereLight(0xffff00, 0x000000, 1);
-        backLight.position.set(0, 0, 1).normalize();
-        backLight.layers.set(4);
-        backCamera.add(backLight);
-        scene.add(backCamera);
-
-        var leftLigth = new THREE.HemisphereLight(0xff00ff, 0x000000, 1);
-        leftLigth.position.set(1, 0, 0).normalize();
-        leftLigth.layers.set(5);
-        leftCamera.add(leftLigth);
-        scene.add(leftCamera);
-
-        var rightLigth = new THREE.HemisphereLight(0x00ffff, 0x000000, 1);
-        rightLigth.position.set(-1, 0, 0).normalize();
-        rightLigth.layers.set(6);
-        rightCamera.add(rightLigth);
-        scene.add(rightCamera);
-
-    }
-
-    function initControls() {
-        //init controls................................................
-        controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enablePan = false;
-        controls.addEventListener('change', render);
-
-    }
-
-
-    function initGrid() {
-        //show grid................................................
-        var size = 80;
-        var divisions = 10;
-
-        var gridHelper = new THREE.GridHelper(size, divisions);
-        scene.add(gridHelper);
-
-        var axesHelper = new THREE.AxesHelper(100);
-        scene.add(axesHelper);
-        render();
-    }
-
-
-    //render function................................................
-    function render() {
-        renderer.render(scene, camera);
-    }
-
-
-    //function openfile................................................
-    function openFile(evt) {
-        files = evt.target.files;
-        currentFile = 0;
-        setModel();
-
-    };
-
-    function setModel() {
-
-        if (model.mesh) {
-            scene.remove(model.mesh);
-            camera.position.set(0, 60, 120);
-        }
-        btNextFile.disabled = true;
-        btNextFile.parentNode.querySelector("i").classList.add("disabled");
-
-
-        // delete previous objects from scene
-        resetMarkers();
-
-
-        var reader = new FileReader();
-
-        reader.onload = function() {
-            var loader = new THREE.STLLoader();
-
-            // parse the .stl file
-            model.bufferGeometry = loader.parse(this.result);
-            //Center the geometry based on the bounding box.
-            model.bufferGeometry.center();
-            
-            model.mesh.geometry = model.bufferGeometry;
-
-
-            model.mesh.layers.enable(1);
-            model.mesh.layers.enable(2);
-            model.mesh.layers.enable(3);
-            model.mesh.layers.enable(4);
-            model.mesh.layers.enable(5);
-            model.mesh.layers.enable(6);
-
-            model.mesh.name = "ametlla";
-            scene.add(model.mesh);
-
-            console.log("Model " + model.name + " carregat.");
-
-
-            render();
-
-        };
-        // --> update here
-        controls.target = new THREE.Vector3(0, 0, 0);
-        controls.update();
-
-
-        if (files[currentFile]) {
-            model.name = files[currentFile].name;
-            reader.readAsArrayBuffer(files[currentFile]);
-        } else {
-            console.log("Selecciona un arxiu stl");
-        }
-
-        currentFile++;
-
-    };
-
-    var intscs = [];
-    var rc = new THREE.Raycaster();
-    var m = new THREE.Vector2();
-    var poi = new THREE.Vector3();
-    var markers = [];
-    var nMarkers = 0;
-    var pos = new THREE.Vector3();
-    var tp = [
-        new THREE.Vector3(),
-        new THREE.Vector3(),
-        new THREE.Vector3()
-    ];
-
-    var tri = new THREE.Triangle();
-    var bc = new THREE.Vector3();
-    var idx = 0;
-
-    function setOrientation(event) {
-
-        if (nMarkers < 3) {
-
-            m.x = ((event.clientX) / w) * 2 - 1;
-            m.y = -((event.clientY) / h) * 2 + 1;
-
-
-            rc.setFromCamera(m, camera);
-            intscs = rc.intersectObject(model.mesh);
-            if (intscs.length > 0) {
-
-                var marker = new THREE.Mesh(new THREE.SphereBufferGeometry(0.2, 12, 12), new THREE.MeshBasicMaterial({
-                    color: 0xFF0000,
-
-                }));
-
-                marker.position.setScalar(1000);
-
-                scene.add(marker);
-                model.markers.push(marker);
-
-                let o = intscs[0];
-                poi.copy(o.point);
-
-                setPos(o.faceIndex);
-
-                o.object.localToWorld(pos);
-                marker.position.copy(pos);
-
-
-
-                markers[nMarkers] = new THREE.Vector3().copy(pos);
-
-
-                var matrix = new THREE.Matrix4();
-                var or = new THREE.Vector3(0, 1, 0);
-                var dir_ = new THREE.Vector3();
-                var dir2 = new THREE.Vector3();
-                var quaternion = new THREE.Quaternion();
-
-                if (nMarkers == 0) {
-
-                    matrix.makeTranslation(-markers[0].x, -markers[0].y, -markers[0].z);
-                    model.mesh.geometry.applyMatrix(matrix);
-                    markers[0] = new THREE.Vector3(0, 0, 0);
-                    marker.position.copy(markers[0]);
-                    marker.name = "marker1";
-
-                }
-
-                if (nMarkers == 1) {
-
-                    dir_.subVectors(markers[1], markers[0]).normalize();
-                    quaternion.setFromUnitVectors(dir_, or);
-
-                    matrix.makeRotationFromQuaternion(quaternion);
-
-                    model.mesh.geometry.applyMatrix(matrix);
-                    markers[1] = new THREE.Vector3(0, markers[1].length(), 0);
-
-                    marker.position.copy(markers[1]);
-                    marker.name = "marker2";
-
-
-                }
-
-                if (nMarkers == 2) {
-
-                    quaternion.setFromUnitVectors(new THREE.Vector3(markers[2].x, 0, markers[2].z).normalize(), new THREE.Vector3(1, 0, 0));
-                    matrix.makeRotationFromQuaternion(quaternion);
-
-                    model.mesh.geometry.applyMatrix(matrix);
-                    var l = new THREE.Vector3(markers[2].x, 0, markers[2].z).length();
-                    markers[2] = new THREE.Vector3(l, markers[2].y, 0);
-
-                    marker.position.copy(markers[2]);
-                    marker.name = "marker3";
-
-                    model.boxHelper = new THREE.BoxHelper(model.mesh, 0xffff00);
-                    scene.add(model.boxHelper);
-
-                    model.bBox = new THREE.Vector3();
-                    model.mesh.geometry.boundingBox.getSize(model.bBox);
-
-
-                    btResetMarkers.parentNode.querySelector("i").classList.remove("disabled");
-                    btGuardar.parentNode.querySelector("i").classList.remove("disabled");
-                    if (currentFile == 0 || currentFile != files.length) {
-                        btNextFile.disabled = false;
-                        btNextFile.parentNode.querySelector("i").classList.remove("disabled");
+            if (!fs.existsSync(docsDir)) {
+                fs.mkdir(docsDir, {
+                    recursive: true
+                }, function (err) {
+                    if (err) {
+                        console.log(err);
+                    } else {
+                        console.log("Folder " + docsDir + " created!");
                     }
-                    setViews(model.mesh);
-                    centerCamera();
+                });
 
-                }
-
-                nMarkers++;
+            } else {
+                console.log("Folder " + docsDir + " exists");
             }
 
+        }
+
+        function initModel() {
+            if (!model.mesh) {
+                model.mesh = new THREE.Mesh();
+                model.mesh.material = new THREE.MeshLambertMaterial({
+                    color: 0xffffff
+                });
+            }
+        }
+
+
+
+        function initCameras() {
+            //initialize cameras................................................
+            camera = new THREE.PerspectiveCamera(30, w / h, 1, 1000);
+            camera.position.set(0, 60, 120);
+
+            topCamera = new THREE.OrthographicCamera(-ortoCamSize, ortoCamSize, ortoCamSize, -ortoCamSize, 10, 2000);
+            topCamera.position.set(0, 80, 0);
+            topCamera.up.set(0, 0, -1);
+            topCamera.lookAt(new THREE.Vector3(0, 0, 0));
+            topCamera.layers.set(1);
+
+            bottomCamera = new THREE.OrthographicCamera(-ortoCamSize, ortoCamSize, ortoCamSize, -ortoCamSize, 10, 2000);
+            bottomCamera.position.set(0, 80, 0);
+            bottomCamera.up.set(0, 0, -1);
+            bottomCamera.lookAt(new THREE.Vector3(0, 0, 0));
+            bottomCamera.layers.set(2);
+
+            frontCamera = new THREE.OrthographicCamera(-ortoCamSize, ortoCamSize, ortoCamSize, -ortoCamSize, 10, 2000);
+            frontCamera.position.set(0, 0, 80);
+            frontCamera.up.set(0, 1, 0);
+            frontCamera.lookAt(new THREE.Vector3(0, 0, 0));
+            frontCamera.layers.set(3);
+
+            backCamera = new THREE.OrthographicCamera(-ortoCamSize, ortoCamSize, ortoCamSize, -ortoCamSize, 10, 2000);
+            backCamera.position.set(0, 0, 80);
+            backCamera.up.set(0, 1, 0);
+            backCamera.lookAt(new THREE.Vector3(0, 0, 0));
+            backCamera.layers.set(4);
+
+            leftCamera = new THREE.OrthographicCamera(-ortoCamSize, ortoCamSize, ortoCamSize, -ortoCamSize, 10, 2000);
+            leftCamera.position.set(-80, 0, 0);
+            leftCamera.up.set(0, 1, 0);
+            leftCamera.lookAt(new THREE.Vector3(0, 0, 0));
+            leftCamera.layers.set(5);
+
+            rightCamera = new THREE.OrthographicCamera(-ortoCamSize, ortoCamSize, ortoCamSize, -ortoCamSize, 10, 2000);
+            rightCamera.position.set(80, 0, 0);
+            rightCamera.up.set(0, 1, 0);
+            rightCamera.lookAt(new THREE.Vector3(0, 0, 0));
+            rightCamera.layers.set(6);
+
+        }
+
+        function initLigths() {
+            //initialize cameras................................................
+            var light = new THREE.HemisphereLight(0xAAAAAA, 0x000000, 1);
+            light.position.set(0, 0, 1).normalize();
+            light.name = "global ligth";
+            camera.add(light);
+            camera.name = "perspective cam";
+            scene.add(camera);
+
+
+            var topLight = new THREE.HemisphereLight(0xff0000, 0x000000, 1);
+            topLight.position.set(0, 1, 0).normalize();
+            topLight.layers.set(1);
+            topCamera.add(topLight);
+            scene.add(topCamera);
+
+            var bottomLight = new THREE.HemisphereLight(0x00ff00, 0x000000, 1);
+            bottomLight.position.set(0, 1, 0).normalize();
+            bottomLight.layers.set(2);
+            bottomCamera.add(bottomLight);
+            scene.add(bottomCamera);
+
+            var frontLight = new THREE.HemisphereLight(0x0000ff, 0x000000, 1);
+            frontLight.position.set(0, 0, 1).normalize();
+            frontLight.layers.set(3);
+            frontCamera.add(frontLight);
+            scene.add(frontCamera);
+
+            var backLight = new THREE.HemisphereLight(0xffff00, 0x000000, 1);
+            backLight.position.set(0, 0, 1).normalize();
+            backLight.layers.set(4);
+            backCamera.add(backLight);
+            scene.add(backCamera);
+
+            var leftLigth = new THREE.HemisphereLight(0xff00ff, 0x000000, 1);
+            leftLigth.position.set(1, 0, 0).normalize();
+            leftLigth.layers.set(5);
+            leftCamera.add(leftLigth);
+            scene.add(leftCamera);
+
+            var rightLigth = new THREE.HemisphereLight(0x00ffff, 0x000000, 1);
+            rightLigth.position.set(-1, 0, 0).normalize();
+            rightLigth.layers.set(6);
+            rightCamera.add(rightLigth);
+            scene.add(rightCamera);
+
+        }
+
+        function initControls() {
+            //init controls................................................
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enablePan = false;
+            controls.addEventListener('change', render);
+
+        }
+
+
+        function initGrid() {
+            //show grid................................................
+            var size = 80;
+            var divisions = 10;
+
+            var gridHelper = new THREE.GridHelper(size, divisions);
+            scene.add(gridHelper);
+
+            var axesHelper = new THREE.AxesHelper(100);
+            scene.add(axesHelper);
             render();
         }
-    }
 
-    function resetMarkers() {
-        model.markers = [];
-        nMarkers = 0;
-        scene.remove(scene.getObjectByName("marker1"));
-        scene.remove(scene.getObjectByName("marker2"));
-        scene.remove(scene.getObjectByName("marker3"));
-        scene.remove(model.boxHelper);
-        btResetMarkers.parentNode.querySelector("i").classList.add("disabled");
-        btGuardar.parentNode.querySelector("i").classList.add("disabled");
-        render();
 
-    }
-
-    function setPos(faceIndex) {
-
-        tp[0].fromBufferAttribute(intscs[0].object.geometry.attributes.position, faceIndex * 3 + 0);
-        tp[1].fromBufferAttribute(intscs[0].object.geometry.attributes.position, faceIndex * 3 + 1);
-        tp[2].fromBufferAttribute(intscs[0].object.geometry.attributes.position, faceIndex * 3 + 2);
-        tri.set(tp[0], tp[1], tp[2]);
-        tri.getBarycoord(poi, bc);
-        if (bc.x > bc.y && bc.x > bc.z) {
-            idx = 0;
-        } else if (bc.y > bc.x && bc.y > bc.z) {
-            idx = 1;
-        } else if (bc.z > bc.x && bc.z > bc.y) {
-            idx = 2;
+        //render function................................................
+        function render() {
+            renderer.render(scene, camera);
         }
-        pos.copy(tp[idx]);
-    }
+
+
+        //function openfile................................................
+        function openFile(evt) {
+            files = evt.target.files;
+            currentFile = 0;
+            setModel();
+
+        };
+
+        function setModel() {
+
+            if (model.mesh) {
+                scene.remove(model.mesh);
+                camera.position.set(0, 60, 120);
+            }
+            btNextFile.disabled = true;
+            btNextFile.parentNode.querySelector("i").classList.add("disabled");
+
+
+            // delete previous objects from scene
+            resetMarkers();
+
+
+            let reader = new FileReader();
+
+            reader.onload = function () {
+                var loader = new THREE.STLLoader();
+
+                // parse the .stl file
+                model.mesh.geometry = loader.parse(this.result);
+                //Center the geometry based on the bounding box.
+                model.mesh.geometry.center();
+
+              
+
+
+                model.mesh.layers.enable(1);
+                model.mesh.layers.enable(2);
+                model.mesh.layers.enable(3);
+                model.mesh.layers.enable(4);
+                model.mesh.layers.enable(5);
+                model.mesh.layers.enable(6);
+
+                model.mesh.name = "ametlla";
+                scene.add(model.mesh);
+
+                console.log("Model " + model.name + " carregat.");
+
+
+                render();
+
+            };
+            // --> update here
+            controls.target = new THREE.Vector3(0, 0, 0);
+            controls.update();
+
+
+            if (files[currentFile]) {
+                model.name = files[currentFile].name;
+                reader.readAsArrayBuffer(files[currentFile]);
+            } else {
+                console.log("Selecciona un arxiu stl");
+            }
+
+            currentFile++;
+
+        };
+
+        var intscs = [];
+        var rc = new THREE.Raycaster();
+        var m = new THREE.Vector2();
+        var poi = new THREE.Vector3();
+        var markers = [];
+        var nMarkers = 0;
+        var pos = new THREE.Vector3();
+        var tp = [
+            new THREE.Vector3(),
+            new THREE.Vector3(),
+            new THREE.Vector3()
+        ];
+
+        var tri = new THREE.Triangle();
+        var bc = new THREE.Vector3();
+        var idx = 0;
+
+        function setOrientation(event) {
+
+            if (nMarkers < 3) {
+
+                m.x = ((event.clientX) / w) * 2 - 1;
+                m.y = -((event.clientY) / h) * 2 + 1;
+
+
+                rc.setFromCamera(m, camera);
+                intscs = rc.intersectObject(model.mesh);
+                if (intscs.length > 0) {
+
+                    var marker = new THREE.Mesh(new THREE.SphereBufferGeometry(0.2, 12, 12), new THREE
+                        .MeshBasicMaterial({
+                            color: 0xFF0000,
+
+                        }));
+
+                    marker.position.setScalar(1000);
+
+                    scene.add(marker);
+                    model.markers.push(marker);
+
+                    let o = intscs[0];
+                    poi.copy(o.point);
+
+                    setPos(o.faceIndex);
+
+                    o.object.localToWorld(pos);
+                    marker.position.copy(pos);
 
 
 
-    function resetCamera() {
-        w = window.innerWidth;
-        h = window.innerHeight;
-        camera.aspect = w / h;
-        camera.updateProjectionMatrix();
-
-        renderer.setSize(w, h);
-        render();
-    }
+                    markers[nMarkers] = new THREE.Vector3().copy(pos);
 
 
-    window.addEventListener('resize', onWindowResize, false);
+                    var matrix = new THREE.Matrix4();
+                    var or = new THREE.Vector3(0, 1, 0);
+                    var dir_ = new THREE.Vector3();
+                    var dir2 = new THREE.Vector3();
+                    var quaternion = new THREE.Quaternion();
 
-    function onWindowResize() {
+                    if (nMarkers == 0) {
 
-        resetCamera();
+                        matrix.makeTranslation(-markers[0].x, -markers[0].y, -markers[0].z);
+                        model.mesh.geometry.applyMatrix(matrix);
+                        markers[0] = new THREE.Vector3(0, 0, 0);
+                        marker.position.copy(markers[0]);
+                        marker.name = "marker1";
 
-    }
-    var exporter = new THREE.STLExporter();
+                    }
 
-    function guardar() {
+                    if (nMarkers == 1) {
 
-        exportBinary();
+                        dir_.subVectors(markers[1], markers[0]).normalize();
+                        quaternion.setFromUnitVectors(dir_, or);
 
-    }
+                        matrix.makeRotationFromQuaternion(quaternion);
 
-    function exportASCII() {
+                        model.mesh.geometry.applyMatrix(matrix);
+                        markers[1] = new THREE.Vector3(0, markers[1].length(), 0);
 
-        var result = exporter.parse(mesh);
-        saveString(result, 'box.stl');
-
-    }
-
-    function exportBinary() {
-
-        var result = exporter.parse(model.mesh, { binary: true });
-        saveArrayBuffer(result, model.name + '_.stl');
-
-    }
+                        marker.position.copy(markers[1]);
+                        marker.name = "marker2";
 
 
-    function saveString(text, filename) {
+                    }
 
-        save(new Blob([text], { type: 'text/plain' }), filename);
+                    if (nMarkers == 2) {
 
-    }
+                        quaternion.setFromUnitVectors(new THREE.Vector3(markers[2].x, 0, markers[2].z).normalize(),
+                            new THREE.Vector3(1, 0, 0));
+                        matrix.makeRotationFromQuaternion(quaternion);
 
-    function saveArrayBuffer(buffer, filename) {
+                        model.mesh.geometry.applyMatrix(matrix);
+                        var l = new THREE.Vector3(markers[2].x, 0, markers[2].z).length();
+                        markers[2] = new THREE.Vector3(l, markers[2].y, 0);
 
-        
-        // With checking if dir already exists
-        var fileName = model.name.split("_");
+                        marker.position.copy(markers[2]);
+                        marker.name = "marker3";
 
-        var filePath = docsDir + fileName[0] + '/';
-        console.log(filePath);
+                        model.boxHelper = new THREE.BoxHelper(model.mesh, 0xffff00);
+                        scene.add(model.boxHelper);
 
-        if (!fs.existsSync(filePath)) {
-            fs.mkdir(filePath, { recursive: true }, function(err) {
-                if (err) {
-                    console.log(err);
+                        model.bBox = new THREE.Vector3();
+                        model.mesh.geometry.boundingBox.getSize(model.bBox);
+
+
+                        btResetMarkers.parentNode.querySelector("i").classList.remove("disabled");
+                        btGuardar.parentNode.querySelector("i").classList.remove("disabled");
+                        if (currentFile == 0 || currentFile != files.length) {
+                            btNextFile.disabled = false;
+                            btNextFile.parentNode.querySelector("i").classList.remove("disabled");
+                        }
+                        //setViews(model.mesh);
+                        centerCamera();
+
+                    }
+
+                    nMarkers++;
                 }
+
+                render();
+            }
+        }
+
+        function resetMarkers() {
+            model.markers = [];
+            nMarkers = 0;
+            scene.remove(scene.getObjectByName("marker1"));
+            scene.remove(scene.getObjectByName("marker2"));
+            scene.remove(scene.getObjectByName("marker3"));
+            scene.remove(model.boxHelper);
+            btResetMarkers.parentNode.querySelector("i").classList.add("disabled");
+            btGuardar.parentNode.querySelector("i").classList.add("disabled");
+            render();
+
+        }
+
+        function setPos(faceIndex) {
+
+            tp[0].fromBufferAttribute(intscs[0].object.geometry.attributes.position, faceIndex * 3 + 0);
+            tp[1].fromBufferAttribute(intscs[0].object.geometry.attributes.position, faceIndex * 3 + 1);
+            tp[2].fromBufferAttribute(intscs[0].object.geometry.attributes.position, faceIndex * 3 + 2);
+            tri.set(tp[0], tp[1], tp[2]);
+            tri.getBarycoord(poi, bc);
+            if (bc.x > bc.y && bc.x > bc.z) {
+                idx = 0;
+            } else if (bc.y > bc.x && bc.y > bc.z) {
+                idx = 1;
+            } else if (bc.z > bc.x && bc.z > bc.y) {
+                idx = 2;
+            }
+            pos.copy(tp[idx]);
+        }
+
+        function resetCamera() {
+            w = window.innerWidth;
+            h = window.innerHeight;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+
+            renderer.setSize(w, h);
+            render();
+        }
+
+
+        window.addEventListener('resize', onWindowResize, false);
+
+        function onWindowResize() {
+
+            resetCamera();
+
+        }
+        var exporter = new THREE.STLExporter();
+
+        function guardar() {
+
+            exportBinary();
+
+        }
+
+        function exportASCII() {
+
+            var result = exporter.parse(mesh);
+            saveString(result, 'box.stl');
+
+        }
+
+        function exportBinary() {
+
+            var result = exporter.parse(model.mesh, {
+                binary: true
             });
+            saveArrayBuffer(result, model.name + '_.stl');
+
         }
 
-        try {
-            fs.writeFileSync(filePath + model.name, buffer);
-            alert('model guardat correctament');
-        } catch (e) {
-            alert('Failed to save the file !');
+        function saveString(text, filename) {
 
-            console.log(e)
+            save(new Blob([text], {
+                type: 'text/plain'
+            }), filename);
+
         }
 
-    }
-
-    function centerCamera() {
-        var f = new THREE.Vector3();
-        var c = model.mesh.geometry.boundingBox.getCenter(f);
-        camera.position.set(f.x, f.y, 120);
-        camera.up.set(0, 1, 0);
-        camera.lookAt(f);
-        camera.updateProjectionMatrix();
-        controls.target = f;
-        controls.update();
-    }
-
-    function setViews(mesh) {
-        var projTop = document.getElementById("projTop");
-        var projBottom = document.getElementById("projBottom");
-        var projFront = document.getElementById("projFront");
-        var projBack = document.getElementById("projBack");
-        var projLeft = document.getElementById("projLeft");
-        var projRight = document.getElementById("projRight");
+        function saveArrayBuffer(buffer, filename) {
 
 
+            // With checking if dir already exists
+            var fileName = model.name.split("_");
 
-        var imgTop = new Image();
-        var imgBottom = new Image();
-        var imgFront = new Image();
-        var imgBack = new Image();
-        var imgLeft = new Image();
-        var imgRight = new Image();
+            var filePath = docsDir + fileName[0] + '/';
+            console.log(filePath);
 
-        var c = new THREE.Vector3();
-        var f = mesh.geometry.boundingBox.getCenter(c);
-        //console.log(c);
+            if (!fs.existsSync(filePath)) {
+                fs.mkdir(filePath, {
+                    recursive: true
+                }, function (err) {
+                    if (err) {
+                        console.log(err);
+                    }
+                });
+            }
 
-        topCamera.position.set(c.x, 80, c.z);
-        topCamera.up.set(0, 0, -1);
-        topCamera.lookAt(c);
-        topCamera.updateProjectionMatrix();
+            try {
+                fs.writeFileSync(filePath + model.name, buffer);
+                alert('model guardat correctament');
+            } catch (e) {
+                alert('Failed to save the file !');
 
-        bottomCamera.position.set(c.x, -80, c.z);
-        bottomCamera.up.set(0, 0, 1);
-        bottomCamera.lookAt(c);
-        bottomCamera.updateProjectionMatrix();
+                console.log(e)
+            }
 
-        frontCamera.position.set(c.x, c.y, 80);
-        frontCamera.up.set(0, 1, 0);
-        frontCamera.lookAt(c);
-        frontCamera.updateProjectionMatrix();
-
-        backCamera.position.set(c.x, c.y, -80);
-        backCamera.up.set(0, 1, 0);
-        backCamera.lookAt(c);
-        backCamera.updateProjectionMatrix();
-
-
-        leftCamera.position.set(80, c.y, c.z);
-        leftCamera.up.set(0, 1, 0);
-        leftCamera.lookAt(c);
-        leftCamera.updateProjectionMatrix();
-
-        rightCamera.position.set(-80, c.y, c.z);
-        rightCamera.up.set(0, 1, 0);
-        rightCamera.lookAt(c);
-        rightCamera.updateProjectionMatrix();
-
-        renderer.setSize(1024, 1024);
-
-        renderer.render(scene, topCamera);
-        imgTop.src = renderer.domElement.toDataURL();
-        var topCtx = projTop.getContext('2d');
-        imgTop.onload = function() {
-            topCtx.drawImage(imgTop, 0, 0, 200, 200);
-            model.projections.top = imgTop.src;
-            setProjectionContour(imgTop, projSuperior);
         }
 
-        renderer.render(scene, bottomCamera);
-        imgBottom.src = renderer.domElement.toDataURL();
-        var bottomCtx = projBottom.getContext('2d');
-        imgBottom.onload = function() {
-            bottomCtx.drawImage(imgBottom, 0, 0, 200, 200);
-            model.projections.bottom = imgBottom.src;
-            setProjectionContour(imgTop, projSuperior);
+        function centerCamera() {
+            var f = new THREE.Vector3();
+            var c = model.mesh.geometry.boundingBox.getCenter(f);
+            camera.position.set(f.x, f.y, 120);
+            camera.up.set(0, 1, 0);
+            camera.lookAt(f);
+            camera.updateProjectionMatrix();
+            controls.target = f;
+            controls.update();
         }
 
-        renderer.render(scene, frontCamera);
-        imgFront.src = renderer.domElement.toDataURL();
-        var frontCtx = projFront.getContext('2d');
-        imgFront.onload = function() {
-            frontCtx.drawImage(imgFront, 0, 0, 200, 200);
-            model.projections.front = imgFront.src;
-            setProjectionContour(imgFront, projFrontal);
+        function setViews(mesh) {
+            var projTop = document.getElementById("projTop");
+            var projBottom = document.getElementById("projBottom");
+            var projFront = document.getElementById("projFront");
+            var projBack = document.getElementById("projBack");
+            var projLeft = document.getElementById("projLeft");
+            var projRight = document.getElementById("projRight");
+
+
+
+            var imgTop = new Image();
+            var imgBottom = new Image();
+            var imgFront = new Image();
+            var imgBack = new Image();
+            var imgLeft = new Image();
+            var imgRight = new Image();
+
+            var c = new THREE.Vector3();
+            var f = mesh.geometry.boundingBox.getCenter(c);
+            //console.log(c);
+
+            topCamera.position.set(c.x, 80, c.z);
+            topCamera.up.set(0, 0, -1);
+            topCamera.lookAt(c);
+            topCamera.updateProjectionMatrix();
+
+            bottomCamera.position.set(c.x, -80, c.z);
+            bottomCamera.up.set(0, 0, 1);
+            bottomCamera.lookAt(c);
+            bottomCamera.updateProjectionMatrix();
+
+            frontCamera.position.set(c.x, c.y, 80);
+            frontCamera.up.set(0, 1, 0);
+            frontCamera.lookAt(c);
+            frontCamera.updateProjectionMatrix();
+
+            backCamera.position.set(c.x, c.y, -80);
+            backCamera.up.set(0, 1, 0);
+            backCamera.lookAt(c);
+            backCamera.updateProjectionMatrix();
+
+
+            leftCamera.position.set(80, c.y, c.z);
+            leftCamera.up.set(0, 1, 0);
+            leftCamera.lookAt(c);
+            leftCamera.updateProjectionMatrix();
+
+            rightCamera.position.set(-80, c.y, c.z);
+            rightCamera.up.set(0, 1, 0);
+            rightCamera.lookAt(c);
+            rightCamera.updateProjectionMatrix();
+
+            renderer.setSize(1024, 1024);
+
+            renderer.render(scene, topCamera);
+            imgTop.src = renderer.domElement.toDataURL();
+            var topCtx = projTop.getContext('2d');
+            imgTop.onload = function () {
+                topCtx.drawImage(imgTop, 0, 0, 200, 200);
+                model.projections.top = imgTop.src;
+                setProjectionContour(imgTop, projSuperior);
+            }
+
+            renderer.render(scene, bottomCamera);
+            imgBottom.src = renderer.domElement.toDataURL();
+            var bottomCtx = projBottom.getContext('2d');
+            imgBottom.onload = function () {
+                bottomCtx.drawImage(imgBottom, 0, 0, 200, 200);
+                model.projections.bottom = imgBottom.src;
+                setProjectionContour(imgTop, projSuperior);
+            }
+
+            renderer.render(scene, frontCamera);
+            imgFront.src = renderer.domElement.toDataURL();
+            var frontCtx = projFront.getContext('2d');
+            imgFront.onload = function () {
+                frontCtx.drawImage(imgFront, 0, 0, 200, 200);
+                model.projections.front = imgFront.src;
+                setProjectionContour(imgFront, projFrontal);
+            }
+
+            renderer.render(scene, backCamera);
+            imgBack.src = renderer.domElement.toDataURL();
+            var backCtx = projBack.getContext('2d');
+            imgBack.onload = function () {
+                backCtx.drawImage(imgBack, 0, 0, 200, 200);
+                model.projections.back = imgBack.src;
+                setProjectionContour(imgBack, projFrontal);
+            }
+
+            renderer.render(scene, leftCamera);
+            imgLeft.src = renderer.domElement.toDataURL();
+            var leftCtx = projLeft.getContext('2d');
+            imgLeft.onload = function () {
+                leftCtx.drawImage(imgLeft, 0, 0, 200, 200);
+                model.projections.left = imgLeft.src;
+                setProjectionContour(imgLeft, projLateral);
+            }
+
+            renderer.render(scene, rightCamera);
+            imgRight.src = renderer.domElement.toDataURL();
+            var rightCtx = projRight.getContext('2d');
+            imgRight.onload = function () {
+                rightCtx.drawImage(imgRight, 0, 0, 200, 200);
+                model.projections.right = imgRight.src;
+                setProjectionContour(imgRight, projLateral);
+            }
+
+            renderer.setSize(w, h);
+            render();
         }
 
-        renderer.render(scene, backCamera);
-        imgBack.src = renderer.domElement.toDataURL();
-        var backCtx = projBack.getContext('2d');
-        imgBack.onload = function() {
-            backCtx.drawImage(imgBack, 0, 0, 200, 200);
-            model.projections.back= imgBack.src;
-            setProjectionContour(imgFront, projFrontal);
+
+//TODO ................................................
+        function saveprojections() {
+
+            dialog.showSaveDialog(function (fileName) {
+
+            });
+
         }
 
-        renderer.render(scene, leftCamera);
-        imgLeft.src = renderer.domElement.toDataURL();
-        var leftCtx = projLeft.getContext('2d');
-        imgLeft.onload = function() {
-            leftCtx.drawImage(imgLeft, 0, 0, 200, 200);
-            model.projections.left = imgLeft.src;
-            setProjectionContour(imgLat, projLateral);
+        function setProjectionContour(c_in, c_out) {
+
+
+            let src = cv.imread(c_in);
+            let dsize = new cv.Size(200, 200);
+            cv.resize(src, src, dsize, 0, 0, cv.INTER_AREA);
+            let dst = cv.Mat.zeros(src.cols, src.rows, cv.CV_8UC3);
+            cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
+            cv.threshold(src, src, 0, 255, cv.THRESH_BINARY);
+            let contours = new cv.MatVector();
+            let hierarchy = new cv.Mat();
+            // You can try more different parameters
+            cv.findContours(src, contours, hierarchy, cv.RETR_CCOMP, cv.CHAIN_APPROX_NONE);
+            const cnt = contours;
+            // console.log(src.channels());
+            // console.log(dst)
+            // console.log(contours.get(0));
+            // draw contours with random Scalar
+            for (let i = 0; i < contours.size(); ++i) {
+                let color = new cv.Scalar(255, 0, 0);
+                cv.drawContours(dst, contours, i, color, 1, cv.LINE_8, hierarchy, 100);
+
+            }
+
+
+            var points = [];
+
+            for (var y = 0; y < dst.rows; y++) {
+                for (var x = 0; x < dst.cols; x++) {
+                    let pixel = dst.ucharPtr(y, x);
+                    let R = pixel[0];
+                    if (R > 0) {
+                        //console.log("x: "+x+"y: "+y);
+                        let center = new cv.Point(x, y);
+                        let radius = 1;
+                        if (y % 20 == 0)
+                            cv.circle(dst, center, radius, [0, 255, 0, 255], 1);
+                        points.push([x, y]);
+                        //console.log([x,y]);
+                    }
+                }
+
+
+            }
+
+
+
+            let lineColor = new cv.Scalar(0, 0, 255);
+            let point1 = new cv.Point(500, 0);
+            let point2 = new cv.Point(500, 1000);
+            cv.line(dst, point1, point2, lineColor, 1)
+            lineColor = new cv.Scalar(0, 255, 255);
+            point1 = new cv.Point(0, 500);
+            point2 = new cv.Point(1000, 500);
+            cv.line(dst, point1, point2, lineColor, 1)
+
+            // You can try more different parameters
+            let rotatedRect = cv.minAreaRect(contours.get(0));
+            let vertices = cv.RotatedRect.points(rotatedRect);
+
+            let rectangleColor = new cv.Scalar(255, 255, 255);
+
+            // draw rotatedRect
+            for (let i = 0; i < 4; i++) {
+                cv.line(dst, vertices[i], vertices[(i + 1) % 4], rectangleColor, 1, cv.LINE_AA, 0);
+            }
+
+
+            let rect = cv.boundingRect(contours.get(0));
+            rectangleColor = new cv.Scalar(255, 255, 0);
+            point1 = new cv.Point(rect.x, rect.y);
+            point2 = new cv.Point(rect.x + rect.width, rect.y + rect.height);
+            cv.rectangle(dst, point1, point2, rectangleColor, 1, cv.LINE_AA, 0);
+
+            lineColor = new cv.Scalar(0, 255, 255);
+            point1 = new cv.Point(0, 500);
+            point2 = new cv.Point(1000, 500);
+            cv.line(dst, point1, point2, lineColor, 1)
+
+            var pointsX = [];
+            for (var i = 0; i < points.length; i++) {
+                pointsX[i] = points[i][0];
+
+            }
+            //console.log(pointsX);
+            let maxX = Math.max(...pointsX);
+            let minX = Math.min(...pointsX);
+            let maxPoint, minPoint;
+
+            for (var i = 0; i < pointsX.length; i++) {
+                if (points[i][0] === minX) {
+                    minPoint = points[i];
+
+                }
+                if (points[i][0] === maxX) {
+                    maxPoint = points[i];
+                }
+            }
+            //console.log("min: " + minPoint + " max: " + maxPoint);
+
+            lineColor = new cv.Scalar(255, 0, 255);
+            point1 = new cv.Point(minPoint[0], maxPoint[1]);
+            point2 = new cv.Point(maxPoint[0], maxPoint[1]);
+            cv.line(dst, point1, point2, lineColor, 1)
+            point1 = new cv.Point(minPoint[0], minPoint[1]);
+            point2 = new cv.Point(maxPoint[0], minPoint[1]);
+            cv.line(dst, point1, point2, lineColor, 1)
+
+
+
+            cv.imshow(c_out, dst);
+            src.delete();
+            dst.delete();
         }
-
-        renderer.render(scene, rightCamera);
-        imgRight.src = renderer.domElement.toDataURL();
-        var rightCtx = projRight.getContext('2d');
-        imgRight.onload = function() {
-            rightCtx.drawImage(imgRight, 0, 0, 200, 200);
-            model.projections.right = imgRight.src;
-            setProjectionContour(imgLat, projLateral);
-        }
-
-        renderer.setSize(w, h);
-        render();
-    }
-
-    
-
-    function saveprojections() {
-
-        dialog.showSaveDialog(function(fileName) {
-
-        });
-
-    }
-
-    function setProjectionContour(c_in, c_out) {
-
-
-let src = cv.imread(c_in);
-let dsize = new cv.Size(200, 200);
-cv.resize(src, src, dsize, 0, 0, cv.INTER_AREA);
-let dst = cv.Mat.zeros(src.cols, src.rows, cv.CV_8UC3);
-cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
-cv.threshold(src, src, 0, 255, cv.THRESH_BINARY);
-let contours = new cv.MatVector();
-let hierarchy = new cv.Mat();
-// You can try more different parameters
-cv.findContours(src, contours, hierarchy, cv.RETR_CCOMP, cv.CHAIN_APPROX_NONE);
-const cnt = contours;
-// console.log(src.channels());
-// console.log(dst)
-// console.log(contours.get(0));
-// draw contours with random Scalar
-for (let i = 0; i < contours.size(); ++i) {
-    let color = new cv.Scalar(255, 0, 0);
-    cv.drawContours(dst, contours, i, color, 1, cv.LINE_8, hierarchy, 100);
-
-}
-
-
-var points = [];
-
-for (var y = 0; y < dst.rows; y++) {
-    for (var x = 0; x < dst.cols; x++) {
-        let pixel = dst.ucharPtr(y, x);
-        let R = pixel[0];
-        if (R > 0) {
-            //console.log("x: "+x+"y: "+y);
-            let center = new cv.Point(x, y);
-            let radius = 1;
-            if (y % 20 == 0)
-                cv.circle(dst, center, radius, [0, 255, 0, 255], 1);
-            points.push([x, y]);
-            //console.log([x,y]);
-        }
-    }
-
-
-}
-
-
-
-let lineColor = new cv.Scalar(0, 0, 255);
-let point1 = new cv.Point(500, 0);
-let point2 = new cv.Point(500, 1000);
-cv.line(dst, point1, point2, lineColor, 1)
-lineColor = new cv.Scalar(0, 255, 255);
-point1 = new cv.Point(0, 500);
-point2 = new cv.Point(1000, 500);
-cv.line(dst, point1, point2, lineColor, 1)
-
-// You can try more different parameters
-let rotatedRect = cv.minAreaRect(contours.get(0));
-let vertices = cv.RotatedRect.points(rotatedRect);
-
-let rectangleColor = new cv.Scalar(255, 255, 255);
-
-// draw rotatedRect
-for (let i = 0; i < 4; i++) {
-    cv.line(dst, vertices[i], vertices[(i + 1) % 4], rectangleColor, 1, cv.LINE_AA, 0);
-}
-
-
-let rect = cv.boundingRect(contours.get(0));
-rectangleColor = new cv.Scalar(255, 255, 0);
-point1 = new cv.Point(rect.x, rect.y);
-point2 = new cv.Point(rect.x + rect.width, rect.y + rect.height);
-cv.rectangle(dst, point1, point2, rectangleColor, 1, cv.LINE_AA, 0);
-
-lineColor = new cv.Scalar(0, 255, 255);
-point1 = new cv.Point(0, 500);
-point2 = new cv.Point(1000, 500);
-cv.line(dst, point1, point2, lineColor, 1)
-
-var pointsX = [];
-for (var i = 0; i < points.length; i++) {
-    pointsX[i] = points[i][0];
-
-}
-//console.log(pointsX);
-let maxX = Math.max(...pointsX);
-let minX = Math.min(...pointsX);
-let maxPoint, minPoint;
-
-for (var i = 0; i < pointsX.length; i++) {
-    if (points[i][0] === minX) {
-        minPoint = points[i];
-
-    }
-    if (points[i][0] === maxX) {
-        maxPoint = points[i];
-    }
-}
-//console.log("min: " + minPoint + " max: " + maxPoint);
-
-lineColor = new cv.Scalar(255, 0, 255);
-point1 = new cv.Point(minPoint[0], maxPoint[1]);
-point2 = new cv.Point(maxPoint[0], maxPoint[1]);
-cv.line(dst, point1, point2, lineColor, 1)
-point1 = new cv.Point(minPoint[0], minPoint[1]);
-point2 = new cv.Point(maxPoint[0], minPoint[1]);
-cv.line(dst, point1, point2, lineColor, 1)
-
-
-
-cv.imshow(c_out, dst);
-src.delete();
-dst.delete();
-}
     </script>
 </body>
 

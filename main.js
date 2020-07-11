@@ -1,5 +1,7 @@
 const { app, BrowserWindow } = require('electron')
+//const path = require('path')
 
+// Load 'opencv.js' assigning the value to the global variable 'cv'
 
 // Mantén una referencia global del objeto window, si no lo haces, la ventana
 // se cerrará automáticamente cuando el objeto JavaScript sea eliminado por el recolector de basura.
@@ -11,6 +13,8 @@ function createWindow () {
     width: 800,
     height: 600,
     webPreferences: {
+      //preload: path.join(__dirname, 'preload.js'),
+      //
       nodeIntegration: true,
       //nodeIntegrationInWorker: true
     }
