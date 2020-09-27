@@ -1,4 +1,10 @@
 const cv = require("./js/opencv.js");
+var fs = require('fs');
+var remote = require('electron').remote;
+var dialog = remote.dialog;
+var app = remote.app;
+var docsDir = app.getPath('documents') + '/Am3D/models/';
+var projectionsDir = app.getPath('documents') + '/Am3D/projections/';
 
 let scene, camera, renderer, controls;
 let w = window.innerWidth;
@@ -29,7 +35,7 @@ const projSuperior = document.getElementById("projSuperior");
 const projLateral = document.getElementById("projLateral");
 
 let files;
-let nTalls = 2;
+let nTalls = 3;
 let currentFile = 0;
 
 var model = {
@@ -92,17 +98,6 @@ var info = {
     cg: document.getElementById("cg").querySelector("span"),
 }
 
-var matrix = new THREE.Matrix4();
-
-
-
-var fs = require('fs');
-var remote = require('electron').remote;
-var dialog = remote.dialog;
-var app = remote.app;
-var docsDir = app.getPath('documents') + '/Am3D/models/';
-var projectionsDir = app.getPath('documents') + '/Am3D/projections/';
-
 
 function init() {
     initMenu();
@@ -113,8 +108,9 @@ function init() {
     initGrid();
     checkDirs();
     initModel();
-
+    
 }
+
 init();
 
 function initMenu() {
@@ -139,8 +135,6 @@ function initScene() {
     renderer.domElement.addEventListener("dblclick", setOrientation);
 
     log.textContent = "Scena carregada correctament";
-
-
 
 }
 
@@ -193,7 +187,7 @@ function initCameras() {
 }
 
 function initLigths() {
-    //initialize cameras................................................
+    
     model.light = new THREE.HemisphereLight(0xAAAAAA, 0x000000, 1);
     model.light.position.set(0, 0, 1).normalize();
     //model.light.layers.enable(1);
@@ -223,11 +217,10 @@ function initLigths() {
 function initControls() {
     //init controls................................................
     controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.enablePan = false;
+    controls.enablePan = true;
     controls.addEventListener('change', render);
 
 }
-
 
 function initGrid() {
     //show grid................................................
@@ -264,7 +257,6 @@ function openFiles(evt) {
     files = evt.target.files;
     currentFile = 0;
     setModel();
-
 };
 
 function setModel() {
@@ -289,8 +281,8 @@ function setModel() {
         // parse the .stl file
         model.mesh.geometry = loader.parse(this.result);
         //Center the geometry based on the bounding box.
-        model.mesh.geometry.center();
-
+        //model.mesh.geometry.center();
+        model.mesh.geometry.computeBoundingBox();
         model.mesh.layers.enable(1);
         model.mesh.layers.enable(2);
         model.mesh.layers.enable(3);
@@ -311,16 +303,17 @@ function setModel() {
     controls.update();
 
     if (files[currentFile]) {
-        model.name = files[currentFile].name;
+        model.name = files[currentFile].name.slice(0, -4);
         reader.readAsArrayBuffer(files[currentFile]);
+       
     } else {
         spinner.style.display = "none";
         console.log("Selecciona un arxiu stl");
     }
+
     if (currentFile != files.length - 1) {
         btNextFile.disabled = false;
         btNextFile.parentNode.querySelector("i").classList.remove("disabled");
-
     }
     currentFile++;
 
@@ -329,7 +322,11 @@ function setModel() {
 function clearScene() {
 
 }
-
+function centerModel(){
+    model.mesh.geometry.center();
+    console.log("model centrat correctamant");
+    render();
+}
 
 var intscs = [];
 var rc = new THREE.Raycaster();
@@ -368,7 +365,10 @@ function setPos(faceIndex) {
 }
 
 function setOrientation(event) {
-
+    console.log("model.markers");
+    console.log(model.markers);
+    console.log("markers");
+    console.log(markers);
     if (nMarkers < 3) {
 
         m.x = ((event.clientX) / w) * 2 - 1;
@@ -397,10 +397,7 @@ function setOrientation(event) {
             o.object.localToWorld(pos);
             marker.position.copy(pos);
 
-
-
             markers[nMarkers] = new THREE.Vector3().copy(pos);
-
 
             var matrix = new THREE.Matrix4();
             var or = new THREE.Vector3(0, 1, 0);
@@ -682,11 +679,11 @@ function exportBinary() {
     var result = exporter.parse(model.mesh, {
         binary: true
     });
-    saveArrayBuffer(result, model.name + '_.stl');
+    saveArrayBuffer(result);
 
 }
 
-function saveArrayBuffer(buffer, filename) {
+function saveArrayBuffer(buffer) {
 
     var fileName = model.name.split("_");
 
@@ -704,7 +701,7 @@ function saveArrayBuffer(buffer, filename) {
     }
 
     try {
-        fs.writeFileSync(filePath + model.name, buffer);
+        fs.writeFileSync(filePath + model.name + '.stl', buffer);
         alert('model guardat correctament');
     } catch (e) {
         alert('Failed to save the file !');
@@ -717,7 +714,6 @@ function saveArrayBuffer(buffer, filename) {
 
 function setViews(mesh) {
     var layers = document.getElementById("layers");
-    console.log(layers);
     var showLayers = layers.style.visibility;
     //només recalculara si les mostram
     if (showLayers == 'hidden') {
@@ -739,24 +735,26 @@ function setViews(mesh) {
     var imgFront = new Image();
     var imgLat = new Image();
 
-    var f = new THREE.Vector3();
-    var c = mesh.geometry.boundingBox.getCenter(f);
-    //console.log(c);
-
-    frontCamera.position.set(c.x, c.y, 80);
+    var c = new THREE.Vector3();
+   
+    mesh.geometry.boundingBox.getCenter(c);//La camera ha de mirar al centre de l'eix y
+    
+    
+    console.log(mesh.geometry.boundingBox);
+    frontCamera.position.set(0,0,80);
     frontCamera.up.set(0, 1, 0);
-    frontCamera.lookAt(c);
+    frontCamera.lookAt(0,c.y, 0);
     frontCamera.updateProjectionMatrix();
 
 
     topCamera.position.set(c.x, 80, c.z);
     topCamera.up.set(0, 0, -1);
-    topCamera.lookAt(c);
+    topCamera.lookAt(0,c.y,0);
     topCamera.updateProjectionMatrix();
 
     latCamera.position.set(80, c.y, c.z);
     latCamera.up.set(0, 1, 0);
-    latCamera.lookAt(c);
+    latCamera.lookAt(0,c.y,0);
     latCamera.updateProjectionMatrix();
 
     renderer.setSize(1024, 1024);
@@ -767,7 +765,6 @@ function setViews(mesh) {
         frontCtx.drawImage(imgFront, 0, 0, 200, 200);
         model.imgFront = imgFront.src;
         setProjectionContour(imgFront, projFrontal);
-
     }
 
     renderer.render(scene, topCamera);
@@ -831,26 +828,26 @@ function setProjectionContour(c_in, c_out) {
             if (R > 0) {
                 //console.log("x: "+x+"y: "+y);
                 let center = new cv.Point(x, y);
+
                 let radius = 1;
                 if (y % 20 == 0)
-                    cv.circle(dst, center, radius, [0, 255, 0, 255], 1);
+                cv.circle(dst, center, radius, [0, 255, 0, 255], 1);
                 points.push([x, y]);
                 //console.log([x,y]);
             }
         }
-
-
     }
-
+    
 
 
     let lineColor = new cv.Scalar(0, 0, 255);
-    let point1 = new cv.Point(500, 0);
-    let point2 = new cv.Point(500, 1000);
-    cv.line(dst, point1, point2, lineColor, 1)
-    lineColor = new cv.Scalar(0, 255, 255);
-    point1 = new cv.Point(0, 500);
-    point2 = new cv.Point(1000, 500);
+    let point1 = new cv.Point(100, 0);
+    let point2 = new cv.Point(100, 200);
+    cv.line(dst, point1, point2, lineColor, 1);
+    
+    lineColor = new cv.Scalar(0, 0, 255);
+    point1 = new cv.Point(0, 100);
+    point2 = new cv.Point(200, 100);
     cv.line(dst, point1, point2, lineColor, 1)
 
     // You can try more different parameters
@@ -980,10 +977,11 @@ function ocultarModel() {
 }
 
 function toFloor() {
+    let matrix = new THREE.Matrix4();
     //console.log(model.mesh.geometry);
     matrix.makeTranslation(0, -model.mesh.geometry.boundingBox.min.y, 0);
     model.mesh.geometry.applyMatrix(matrix);
-
+/*
 
     let position = model.mesh.geometry.attributes.position;
     var va = new THREE.Vector3();
@@ -1030,21 +1028,105 @@ function toFloor() {
 
     model.dimensions.offsetY = offsetY;
     model.dimensions.offsetX = offsetX;
+  
     model.dimensions.offsetZ = offsetZ;
-
+*/
     render();
 
 }
 
 //TODO ................................................
 function saveImg() {
-
     // With checking if dir already exists
+    var fileName = model.name.split("_"); 
+    var filePath = projectionsDir + fileName[0] + '/' + model.name  + '/';
+    
+
+
+    if (!fs.existsSync(filePath)) {
+        console.log("Path don't exist, trying to create it...");
+        fs.mkdir(filePath, {
+            recursive: true
+        }, function (err) {
+            if (err) {
+                console.log(err);
+            }else{
+                console.log("Path: " + filePath + " created succesfuly");
+            }
+
+        });
+    }
+
+    try {
+        // Get the DataUrl from the Canvas
+        const urlFront = model.imgFront;
+        const base64DataFront = urlFront.replace(/^data:image\/png;base64,/, "");
+        fs.writeFileSync(filePath + model.name + '_front' + '.png', base64DataFront, 'base64');
+
+        const urlTop = model.imgTop;
+        const base64DataTop = urlTop.replace(/^data:image\/png;base64,/, "");
+        fs.writeFileSync(filePath + model.name + '_top' + '.png', base64DataTop, 'base64'); 
+
+        const urlLat = model.imgLat;
+        const base64DataLat = urlLat.replace(/^data:image\/png;base64,/, "");
+        fs.writeFileSync(filePath + model.name + '_lat' + '.png', base64DataLat, 'base64');
+        alert('projeccions guardades correctament');
+    } catch (e) {
+        alert('Failed to save the file !');
+
+        console.log(e)
+    }
+
+    
+
+    saveJSON();
+    //dialog.showSaveDialog(function (fileName) { });
+
+
+}
+
+function saveJSON(){
+    var ametlla = {
+        nom: model.name.slice(0, -4),
+        altBot: model.dimensions.altura_botanica,
+        alt: model.dimensions.altura,
+        ample: model.dimensions.amplada,
+        gruix: model.dimensions.gruixa,
+        volum: model.volum,
+        area: model.area,
+        cm: model.centreDeMassa,
+        cg: model.esfera.centre,
+        ve: model.esfera.volum,
+        re: model.esfera.radi,
+       
+        // convexHull: model.convexHull,
+
+
+        //projeccions: {
+        //    front: model.imgFront,
+        //    sup: model.imgTop,
+        //    lat: model.imgLat
+        //},
+        // seccions: {
+        //     x: [],
+        //     y: [],
+        //     z: []
+        // }
+    }
+    // for (var i = 0; i < nTalls; i++) {
+    //     ametlla.seccions.x.push(model.seccions.x[i].geometry.vertices);
+    //     ametlla.seccions.y.push(model.seccions.y[i].geometry.vertices);
+    //     ametlla.seccions.z.push(model.seccions.z[i].geometry.vertices);
+    // }
+    
+    // ametlla.seccions.x = JSON.stringify(ametlla.seccions.x);
+    // ametlla.seccions.y = JSON.stringify(ametlla.seccions.y);
+    // ametlla.seccions.z = JSON.stringify(ametlla.seccions.z);
+    
+    data = JSON.stringify(ametlla);
     var fileName = model.name.split("_");
-
-    var filePath = projectionsDir + fileName[0] + '/';
-    console.log(filePath);
-
+    
+    var filePath = projectionsDir + fileName[0] + '/' + model.name + '/';
 
     if (!fs.existsSync(filePath)) {
         fs.mkdir(filePath, {
@@ -1056,30 +1138,18 @@ function saveImg() {
         });
     }
 
-    try {
-        // Get the DataUrl from the Canvas
-        const url = model.imgFront;
-        // remove Base64 stuff from the Image
-        const base64Data = url.replace(/^data:image\/png;base64,/, "");
-        fs.writeFileSync(filePath + model.name + '.png', base64Data, 'base64');
-        alert('model guardat correctament');
-    } catch (e) {
-        alert('Failed to save the file !');
-
-        console.log(e)
-    }
-
-
-
-
-    //dialog.showSaveDialog(function (fileName) { });
-
-
+    fs.writeFile(filePath + model.name + '.json', data, (err) => {
+        if (err) throw err;
+        console.log('Data written to file');
+    });
+    
+    console.log('This is after the write call');
 }
 /* TODO.....
-- revisar tot es sistema d'archius
-- Guardar imatges de ses projeccions
-- Guardar json amb parametres de cada model
-- Automatitzar recorreguts per les carpetes
-- Conexio base de dades
+- altura botanica: model.dimensions.offsetY...?
+- revisar tot es sistema d'archius...fet
+- Guardar imatges de ses projeccions...fet
+- Guardar json amb parametres de cada model...fent
+- Automatitzar recorreguts per les carpetes...
+- Conexio base de dades...?
 */
